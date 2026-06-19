@@ -23,9 +23,14 @@ export default function EditorView({clients,profiles,email,notify,goSettings}:{c
   };
   const apply=async()=>{if(!active)return;setBusy(true);try{const edited=await applyOne(active);setItems(x=>x.map(i=>i.id===active.id?{...i,edited}:i));notify('Invoice is ready')}catch(e){notify(e instanceof Error?e.message:'PDF editing failed')}finally{setBusy(false)}};
   const applySelected=async()=>{
-    if(selectedIds.size===0)return;
+    if(selectedIds.size===0||!active)return;
     setBusy(true);
-    const targets=items.filter(i=>selectedIds.has(i.id));
+    // Sync active invoice's form + clientId to all selected before processing
+    const sharedForm=active.form;
+    const sharedClientId=active.clientId;
+    const synced=items.map(i=>selectedIds.has(i.id)?{...i,form:{...sharedForm},clientId:sharedClientId}:i);
+    setItems(synced);
+    const targets=synced.filter(i=>selectedIds.has(i.id));
     let done=0,failed=0;
     await Promise.all(targets.map(async inv=>{
       try{const edited=await applyOne(inv);setItems(x=>x.map(i=>i.id===inv.id?{...i,edited}:i));done++}catch{failed++}
