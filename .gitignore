@@ -7,3 +7,4 @@ prisma/dev.db-journal
 __pycache__
 work/
 .claude/
+*.tsbuildinfo
