@@ -26,18 +26,29 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
             page.insert_text(fitz.Point(x0 + 6, y), text, fontname=font, fontsize=size, color=black)
         y += 15
 
-    bill_y0, bill_y1 = 144.57, 195.59
+    bill_y0, bill_y1 = 144.57, 207.0
+    # erase full content area including the gap the original PDF had between boxes
     page.draw_rect(fitz.Rect(x0 + 1, 157.33, x1 - 1, bill_y1 - 0.5), color=white, fill=white)
     page.draw_line(fitz.Point(x0, bill_y0), fitz.Point(x0, bill_y1), color=black, width=width)
     page.draw_line(fitz.Point(x1, bill_y0), fitz.Point(x1, bill_y1), color=black, width=width)
     page.draw_line(fitz.Point(x0, bill_y1), fitz.Point(x1, bill_y1), color=black, width=width)
-    y = bill_y0 + 25
-    for text in [client_name, loc_line1, loc_line2]:
+    # combine loc_line1 + loc_line2 onto one line when loc_line2 is a short suffix (state/zip)
+    bill_lines = [client_name]
+    if loc_line1 and loc_line2 and len(loc_line2) <= 20:
+        bill_lines.append(f"{loc_line1}, {loc_line2}")
+    elif loc_line1:
+        bill_lines.append(loc_line1)
+        if loc_line2:
+            bill_lines.append(loc_line2)
+    y = bill_y0 + 22
+    for text in bill_lines:
         if text:
             page.insert_text(fitz.Point(x0 + 6, y), text, fontname="Helvetica", fontsize=11, color=black)
-            y += 14
+            y += 13
 
     remit_y0, remit_y1 = 209.76, 350.08
+    # erase gap between bill-to box and make-payable header so no original content bleeds through
+    page.draw_rect(fitz.Rect(x0 + 1, bill_y1, x1 - 1, remit_y0 + 1), color=white, fill=white)
     page.draw_rect(fitz.Rect(x0 + 1, 292, x1 - 1, remit_y1 - 0.5), color=white, fill=white)
     page.draw_line(fitz.Point(x0, remit_y0), fitz.Point(x0, remit_y1), color=black, width=width)
     page.draw_line(fitz.Point(x1, remit_y0), fitz.Point(x1, remit_y1), color=black, width=width)
