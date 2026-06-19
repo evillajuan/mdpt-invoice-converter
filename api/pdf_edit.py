@@ -2,6 +2,7 @@ import io
 import fitz
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import Response
+from mangum import Mangum
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -60,6 +61,7 @@ def health():
 
 
 @app.post("/api/pdf_edit")
+@app.post("/api/pdf_edit/")
 @app.post("/")
 async def edit_invoice(
     pdf: UploadFile = File(...),
@@ -74,3 +76,6 @@ async def edit_invoice(
 ):
     edited = render_invoice(await pdf.read(), companyName, website, addr1, addr2, clientName, locLine1, locLine2, remitEmail)
     return Response(content=edited, media_type="application/pdf", headers={"Cache-Control": "no-store"})
+
+# Vercel ASGI handler
+handler = Mangum(app, lifespan="off")
