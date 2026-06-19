@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model CompanyProfile {
+  id String @id @default(cuid())
+  name String
+  website String?
+  phone String?
+  email String?
+  remitEmail String?
+  addr1 String?
+  city String?
+  state String?
+  zip String?
+  isDefault Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model Client {
+  id String @id @default(cuid())
+  name String
+  type String?
+  poNumber String?
+  c1Name String?
+  c1Title String?
+  c1Email String?
+  c1Phone String?
+  c2Name String?
+  c2Title String?
+  c2Email String?
+  c2Phone String?
+  bcName String?
+  bcTitle String?
+  bcEmail String?
+  bcPhone String?
+  notes String?
+  locations Location[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model Location {
+  id String @id @default(cuid())
+  label String
+  line1 String
+  line2 String?
+  client Client @relation(fields:[clientId],references:[id],onDelete:Cascade)
+  clientId String
+}
+model EmailSettings {
+  id String @id @default("singleton")
+  gmailUser String?
+  gmailAppPwd String?
+  senderName String?
+}

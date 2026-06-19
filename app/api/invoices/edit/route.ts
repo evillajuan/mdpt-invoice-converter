@@ -1,0 +1,2 @@
+export const runtime='nodejs';
+export async function POST(r:Request){try{const form=await r.formData();const res=await fetch('http://127.0.0.1:8001/edit',{method:'POST',body:form});if(!res.ok)return Response.json({error:await res.text()},{status:res.status});return new Response(await res.arrayBuffer(),{headers:{'Content-Type':'application/pdf'}});}catch{return Response.json({error:'PDF service unavailable. Start the sidecar on port 8001.'},{status:503});}}
