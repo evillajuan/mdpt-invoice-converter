@@ -32,16 +32,8 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     page.draw_line(fitz.Point(x0, bill_y0), fitz.Point(x0, bill_y1), color=black, width=width)
     page.draw_line(fitz.Point(x1, bill_y0), fitz.Point(x1, bill_y1), color=black, width=width)
     page.draw_line(fitz.Point(x0, bill_y1), fitz.Point(x1, bill_y1), color=black, width=width)
-    # combine loc_line1 + loc_line2 onto one line when loc_line2 is a short suffix (state/zip)
-    bill_lines = [client_name]
-    if loc_line1 and loc_line2 and len(loc_line2) <= 20:
-        bill_lines.append(f"{loc_line1}, {loc_line2}")
-    elif loc_line1:
-        bill_lines.append(loc_line1)
-        if loc_line2:
-            bill_lines.append(loc_line2)
     y = bill_y0 + 22
-    for text in bill_lines:
+    for text in [client_name, loc_line1, loc_line2]:
         if text:
             page.insert_text(fitz.Point(x0 + 6, y), text, fontname="Helvetica", fontsize=11, color=black)
             y += 13
