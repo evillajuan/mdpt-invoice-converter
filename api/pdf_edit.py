@@ -41,14 +41,13 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     remit_y0, remit_y1 = 209.76, 350.08
     # erase gap between bill-to box and make-payable header so no original content bleeds through
     page.draw_rect(fitz.Rect(x0 + 1, bill_y1, x1 - 1, remit_y0 + 1), color=white, fill=white)
-    # erase only the original template email address line, not the full bottom section
-    page.draw_rect(fitz.Rect(x0 + 1, 280, x1 - 1, 308), color=white, fill=white)
+    page.draw_rect(fitz.Rect(x0 + 1, 292, x1 - 1, remit_y1 - 0.5), color=white, fill=white)
     page.draw_line(fitz.Point(x0, remit_y0), fitz.Point(x0, remit_y1), color=black, width=width)
     page.draw_line(fitz.Point(x1, remit_y0), fitz.Point(x1, remit_y1), color=black, width=width)
     page.draw_line(fitz.Point(x0, remit_y1), fitz.Point(x1, remit_y1), color=black, width=width)
-    # "Email Remittance Advice to:" label is already in the template — only replace the email address
+    page.insert_text(fitz.Point(x0 + 6, 310), "Email Remittance Advice to:", fontname="Helvetica", fontsize=11, color=black)
     if remit_email:
-        page.insert_text(fitz.Point(x0 + 6, 302), remit_email, fontname="Helvetica", fontsize=11, color=black)
+        page.insert_text(fitz.Point(x0 + 6, 325), remit_email, fontname="Helvetica", fontsize=11, color=black)
     if len(doc) > 1:
         doc[1].draw_rect(fitz.Rect(690, 42, 800, 132), color=white, fill=white)
 
