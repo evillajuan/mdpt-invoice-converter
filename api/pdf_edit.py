@@ -81,7 +81,7 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
 
     # Extend the MAKE PAYABLE TO box downward and insert remittance label
     # White out the original bottom border, extend sides, draw new bottom
-    page.draw_rect(fitz.Rect(x0 - 2, last_y, x1 + 2, last_y + 20), color=None, fill=white, overlay=True)
+    page.draw_rect(fitz.Rect(x0 - 2, last_y, x1 + 2, last_y + 40), color=None, fill=white, overlay=True)
     page.draw_line(fitz.Point(x0, last_y), fitz.Point(x0, new_box_bottom), color=black, width=width)
     page.draw_line(fitz.Point(x1, last_y), fitz.Point(x1, new_box_bottom), color=black, width=width)
     page.draw_line(fitz.Point(x0, new_box_bottom), fitz.Point(x1, new_box_bottom), color=black, width=width)
