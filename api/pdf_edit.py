@@ -31,15 +31,16 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
                 widget.field_value = remit_email
                 widget.update()
 
-    # Find the lowest content (text blocks OR widgets) in the remit zone
+    # Find the lowest content in the remit zone — only blocks contained within the column width
     last_y = 207.0 + 30
     for block in page.get_text("blocks"):
         bx0, by0, bx1, by1 = block[0], block[1], block[2], block[3]
-        if fitz.Rect(bx0, by0, bx1, by1).intersects(remit_zone) and by1 > last_y:
+        if bx0 >= x0 - 5 and bx1 <= x1 + 5 and by0 >= 207.0 and by1 > last_y:
             last_y = by1
     for widget in list(page.widgets()):
-        if widget.rect.intersects(remit_zone) and widget.rect.y1 > last_y:
-            last_y = widget.rect.y1
+        r = widget.rect
+        if r.x0 >= x0 - 5 and r.x1 <= x1 + 5 and r.y0 >= 207.0 and r.y1 > last_y:
+            last_y = r.y1
     label_y = last_y + 14
     new_box_bottom = label_y + 18
 
