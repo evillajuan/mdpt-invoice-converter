@@ -10,7 +10,7 @@ def health(): return {'ok':True}
 @app.post('/edit')
 async def edit_invoice(pdf:UploadFile=File(...),companyName:str=Form('Tessen Payroll USA LLC'),website:str=Form('tessenpayroll.com'),addr1:str=Form('1309 Coffeen Ave'),addr2:str=Form('Sheridan, WY 82801'),clientName:str=Form(''),locLine1:str=Form(''),locLine2:str=Form(''),remitEmail:str=Form('finance@tessenpayroll.com')):
     doc=fitz.open(stream=await pdf.read(),filetype='pdf'); p1=doc[0]; W=.57; grey=(.784,.784,.784); black=(0,0,0); white=(1,1,1); x0,x1=42.52,269.29
-    by0,by1=144.57,207.0; my0,my1=209.76,350.08
+    by0,by1=144.57,207.0; my0,my1=209.76,410.0
     edit_zones=[fitz.Rect(42.52,42.52,269.29,141.33),fitz.Rect(x0,by0,x1,by1),fitz.Rect(x0,by1,x1,my0),fitz.Rect(x0,my0,x1,my1)]
     # Remove form widgets — never removed by apply_redactions
     for w in list(p1.widgets()):

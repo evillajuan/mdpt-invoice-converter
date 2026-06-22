@@ -16,7 +16,7 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     grey, black, white = (0.784, 0.784, 0.784), (0, 0, 0), (1, 1, 1)
     x0, x1 = 42.52, 269.29
     bill_y0, bill_y1 = 144.57, 207.0
-    remit_y0, remit_y1 = 209.76, 350.08
+    remit_y0, remit_y1 = 209.76, 410.0
 
     edit_zones = [
         fitz.Rect(42.52, 42.52, 269.29, 141.33),
