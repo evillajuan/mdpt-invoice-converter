@@ -11,7 +11,7 @@ def health(): return {'ok':True}
 async def edit_invoice(pdf:UploadFile=File(...),companyName:str=Form('Tessen Payroll USA LLC'),website:str=Form('tessenpayroll.com'),addr1:str=Form('1309 Coffeen Ave'),addr2:str=Form('Sheridan, WY 82801'),clientName:str=Form(''),locLine1:str=Form(''),locLine2:str=Form(''),remitEmail:str=Form('finance@tessenpayroll.com')):
     doc=fitz.open(stream=await pdf.read(),filetype='pdf'); p1=doc[0]; W=.57; grey=(.784,.784,.784); black=(0,0,0); white=(1,1,1); x0,x1=42.52,269.29
     by0,by1=144.57,207.0; remit_y0=207.0
-    company_zone=fitz.Rect(42.52,42.52,269.29,141.33); bill_zone=fitz.Rect(x0,by0+12.76,x1,by1); remit_zone=fitz.Rect(x0,remit_y0,x1,420.0)
+    company_zone=fitz.Rect(42.52,42.52,269.29,141.33); bill_zone=fitz.Rect(x0,by0,x1,by1); remit_zone=fitz.Rect(x0,remit_y0,x1,420.0)
     # Find ceiling: first full-width block below remit zone
     ceiling_y=p1.rect.height
     for block in p1.get_text('blocks'):
@@ -41,9 +41,11 @@ async def edit_invoice(pdf:UploadFile=File(...),companyName:str=Form('Tessen Pay
     for text,font,size in [(companyName,'Helvetica-Bold',11),(website,'Helvetica',11),(addr1,'Helvetica',11),(addr2,'Helvetica',11)]:
         if text:p1.insert_text(fitz.Point(x0+6,y),text,fontname=font,fontsize=size,color=black)
         y+=13
-    # Bill-to box
-    p1.draw_line(fitz.Point(x0,by0),fitz.Point(x0,by1),color=black,width=W);p1.draw_line(fitz.Point(x1,by0),fitz.Point(x1,by1),color=black,width=W);p1.draw_line(fitz.Point(x0,by1),fitz.Point(x1,by1),color=black,width=W)
-    y=by0+22
+    # Bill-to box (fully redrawn with bold header)
+    bhh=12; p1.draw_rect(fitz.Rect(x0,by0,x1,by0+bhh),color=None,fill=grey)
+    p1.insert_text(fitz.Point(x0+6,by0+bhh-2),'BILL TO',fontname='Helvetica-Bold',fontsize=11,color=black)
+    p1.draw_rect(fitz.Rect(x0,by0,x1,by1),color=black,width=W,fill=None)
+    y=by0+bhh+13
     for text in [clientName,locLine1,locLine2]:
         if text:p1.insert_text(fitz.Point(x0+6,y),text,fontname='Helvetica',fontsize=11,color=black);y+=13
     # MAKE PAYABLE TO box — redrawn with compact spacing to always fit email remittance

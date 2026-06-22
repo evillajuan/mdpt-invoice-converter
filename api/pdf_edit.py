@@ -18,7 +18,7 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     bill_y0, bill_y1 = 144.57, 207.0
     remit_y0 = 207.0
     company_zone = fitz.Rect(42.52, 42.52, 269.29, 141.33)
-    bill_zone    = fitz.Rect(x0, bill_y0 + 12.76, x1, bill_y1)
+    bill_zone    = fitz.Rect(x0, bill_y0, x1, bill_y1)
     remit_zone   = fitz.Rect(x0, remit_y0, x1, 420.0)
 
     # Find ceiling: first full-width content below the remit zone (e.g. "Please detach" or table)
@@ -70,11 +70,12 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
             page.insert_text(fitz.Point(x0 + 6, y), text, fontname=font, fontsize=size, color=black)
         y += 13
 
-    # Bill-to box (header stays from original PDF, redraw border and insert client text)
-    page.draw_line(fitz.Point(x0, bill_y0), fitz.Point(x0, bill_y1), color=black, width=width)
-    page.draw_line(fitz.Point(x1, bill_y0), fitz.Point(x1, bill_y1), color=black, width=width)
-    page.draw_line(fitz.Point(x0, bill_y1), fitz.Point(x1, bill_y1), color=black, width=width)
-    y = bill_y0 + 22
+    # Bill-to box (fully redrawn with bold header)
+    bill_header_h = 12
+    page.draw_rect(fitz.Rect(x0, bill_y0, x1, bill_y0 + bill_header_h), color=None, fill=grey)
+    page.insert_text(fitz.Point(x0 + 6, bill_y0 + bill_header_h - 2), "BILL TO", fontname="Helvetica-Bold", fontsize=11, color=black)
+    page.draw_rect(fitz.Rect(x0, bill_y0, x1, bill_y1), color=black, width=width)
+    y = bill_y0 + bill_header_h + 13
     for text in [client_name, loc_line1, loc_line2]:
         if text:
             page.insert_text(fitz.Point(x0 + 6, y), text, fontname="Helvetica", fontsize=11, color=black)
