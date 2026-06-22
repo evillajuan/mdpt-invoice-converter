@@ -9,51 +9,40 @@ app.add_middleware(CORSMiddleware,allow_origins=['*'],allow_methods=['*'],allow_
 def health(): return {'ok':True}
 @app.post('/edit')
 async def edit_invoice(pdf:UploadFile=File(...),companyName:str=Form('Tessen Payroll USA LLC'),website:str=Form('tessenpayroll.com'),addr1:str=Form('1309 Coffeen Ave'),addr2:str=Form('Sheridan, WY 82801'),clientName:str=Form(''),locLine1:str=Form(''),locLine2:str=Form(''),remitEmail:str=Form('finance@tessenpayroll.com')):
-    doc=fitz.open(stream=await pdf.read(),filetype='pdf'); p1=doc[0]; W=.57; grey=(.784,.784,.784); black=(0,0,0); x0,x1=42.52,269.29
-    cy0=42.52; n_co=len([t for t in [companyName,website,addr1,addr2] if t]) or 1; cy1=cy0+29.76+(n_co-1)*15+10
-    gap=141.33-cy1; by0=144.57-gap; by1=207.0-gap; my0=by1; my1=410.0
-    remit_zone=fitz.Rect(x0,my0,x1,my1)
-    # Only edit company and bill-to zones; leave remit zone intact
-    edit_zones=[fitz.Rect(x0,cy0,x1,cy1),fitz.Rect(x0,by0,x1,by1),fitz.Rect(x0,by1,x1,my0)]
-    # Remove form widgets in company/bill zones; update email widget in remit zone
+    doc=fitz.open(stream=await pdf.read(),filetype='pdf'); p1=doc[0]; W=.57; grey=(.784,.784,.784); black=(0,0,0); white=(1,1,1); x0,x1=42.52,269.29
+    HH=12.76; GAP=3.24; REMIT_TOP=207.0
+    co_lines=[(t,f,s) for t,f,s in [(companyName,'Helvetica-Bold',11),(website,'Helvetica',10),(addr1,'Helvetica',10),(addr2,'Helvetica',10)] if t]
+    n_co=len(co_lines) or 1; LH=13; cy0=42.52; cy1=cy0+HH+8+n_co*LH+6
+    bill_lines=[t for t in [clientName,locLine1,locLine2] if t]; n_b=len(bill_lines) or 1
+    by0=cy1+GAP; by1=min(by0+HH+8+n_b*LH+6, REMIT_TOP-GAP)
+    remit_zone=fitz.Rect(x0,REMIT_TOP,x1,420.0); clear_zone=fitz.Rect(x0,42.52,x1,REMIT_TOP)
     for w in list(p1.widgets()):
-        if any(w.rect.intersects(r) for r in edit_zones):
-            p1.delete_widget(w)
+        if w.rect.intersects(clear_zone): p1.delete_widget(w)
         elif w.rect.intersects(remit_zone):
             val=w.field_value or ''; name=w.field_name or ''
-            if '@' in val or 'email' in name.lower() or 'remit' in name.lower():
-                w.field_value=remitEmail; w.update()
-    # Remove free-text annotations in edit zones only
-    for a in list(p1.annots()):
-        if a.type[0]!=12 and any(a.rect.intersects(r) for r in edit_zones): p1.delete_annot(a)
-    # Redact text, images, line art in edit zones only
-    p1.clean_contents()
-    for r in edit_zones: p1.add_redact_annot(r,fill=(1,1,1))
-    p1.apply_redactions(images=2,graphics=1)
-    for r in edit_zones: p1.draw_rect(r,color=None,fill=(1,1,1),overlay=True)
-    # Draw company box
-    y0,y1=cy0,cy1; p1.draw_rect(fitz.Rect(x0,y0,x1,y0+12.76),color=None,fill=grey); p1.draw_rect(fitz.Rect(x0,y0,x1,y1),color=black,width=W)
-    y=y0+29.76
-    for text,font,size in [(companyName,'Helvetica-Bold',11),(website,'Helvetica',11),(addr1,'Helvetica',11),(addr2,'Helvetica',11)]:
-        if text:p1.insert_text(fitz.Point(x0+6,y),text,fontname=font,fontsize=size,color=black)
-        y+=15
-    # Draw bill-to box border and insert client text
-    p1.draw_line(fitz.Point(x0,by0),fitz.Point(x0,by1),color=black,width=W);p1.draw_line(fitz.Point(x1,by0),fitz.Point(x1,by1),color=black,width=W);p1.draw_line(fitz.Point(x0,by1),fitz.Point(x1,by1),color=black,width=W)
-    y=by0+22
-    for text in [clientName,locLine1,locLine2]:
-        if text:p1.insert_text(fitz.Point(x0+6,y),text,fontname='Helvetica',fontsize=11,color=black);y+=13
-    # Find lowest content in remit zone then append remittance label below it
-    last_y=my0+30
+            if '@' in val or 'email' in name.lower() or 'remit' in name.lower(): w.field_value=remitEmail; w.update()
+    last_y=REMIT_TOP+30
     for block in p1.get_text('blocks'):
         bx0,by0_,bx1,by1_=block[0],block[1],block[2],block[3]
-        if fitz.Rect(bx0,by0_,bx1,by1_).intersects(remit_zone) and by1_>last_y:
-            last_y=by1_
+        if bx0>=x0-5 and bx1<=x1+5 and by0_>=REMIT_TOP and by1_>last_y: last_y=by1_
     for w in list(p1.widgets()):
-        if w.rect.intersects(remit_zone) and w.rect.y1>last_y:
-            last_y=w.rect.y1
-    label_y=last_y+14
+        if w.rect.x0>=x0-5 and w.rect.x1<=x1+5 and w.rect.y0>=REMIT_TOP and w.rect.y1>last_y: last_y=w.rect.y1
+    label_y=last_y+14; nbb=label_y+18
+    for a in list(p1.annots()):
+        if a.type[0]!=12 and a.rect.intersects(clear_zone): p1.delete_annot(a)
+    p1.clean_contents(); p1.add_redact_annot(clear_zone,fill=(1,1,1)); p1.apply_redactions(images=2,graphics=1)
+    p1.draw_rect(clear_zone,color=None,fill=white,overlay=True)
+    p1.draw_rect(fitz.Rect(x0,cy0,x1,cy0+HH),color=None,fill=grey); p1.draw_rect(fitz.Rect(x0,cy0,x1,cy1),color=black,width=W)
+    y=cy0+HH+8+LH-3
+    for text,font,size in co_lines: p1.insert_text(fitz.Point(x0+6,y),text,fontname=font,fontsize=size,color=black); y+=LH
+    p1.draw_rect(fitz.Rect(x0,by0,x1,by0+HH),color=None,fill=grey); p1.draw_rect(fitz.Rect(x0,by0,x1,by1),color=black,width=W)
+    p1.insert_text(fitz.Point(x0+4,by0+HH-2),'BILL TO',fontname='Helvetica-Bold',fontsize=7,color=black)
+    y=by0+HH+8+LH-3
+    for text in bill_lines: p1.insert_text(fitz.Point(x0+6,y),text,fontname='Helvetica',fontsize=10,color=black); y+=LH
+    p1.draw_rect(fitz.Rect(x0-2,last_y,x1+2,last_y+20),color=None,fill=white,overlay=True)
+    p1.draw_line(fitz.Point(x0,last_y),fitz.Point(x0,nbb),color=black,width=W); p1.draw_line(fitz.Point(x1,last_y),fitz.Point(x1,nbb),color=black,width=W); p1.draw_line(fitz.Point(x0,nbb),fitz.Point(x1,nbb),color=black,width=W)
     p1.insert_text(fitz.Point(x0+6,label_y),'Email remittance advice to:',fontname='Helvetica',fontsize=9,color=black)
-    if remitEmail:p1.insert_text(fitz.Point(x0+6,label_y+12),remitEmail,fontname='Helvetica',fontsize=9,color=black)
+    if remitEmail: p1.insert_text(fitz.Point(x0+6,label_y+12),remitEmail,fontname='Helvetica',fontsize=9,color=black)
     if len(doc)>1:
         p2=doc[1]; p2.clean_contents(); p2.add_redact_annot(fitz.Rect(690,42,800,132),fill=(1,1,1)); p2.apply_redactions(images=2,graphics=1)
     out=io.BytesIO();doc.save(out,deflate=True,garbage=3);doc.close();return Response(content=out.getvalue(),media_type='application/pdf')

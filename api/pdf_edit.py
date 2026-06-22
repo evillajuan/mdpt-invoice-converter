@@ -15,21 +15,38 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     width = 0.57
     grey, black, white = (0.784, 0.784, 0.784), (0, 0, 0), (1, 1, 1)
     x0, x1 = 42.52, 269.29
-    company_y0 = 42.52
-    company_texts = [t for t in [company_name, website, addr1, addr2] if t]
-    n_company = len(company_texts) if company_texts else 1
-    company_y1 = company_y0 + 29.76 + (n_company - 1) * 15 + 10
-    gap = 141.33 - company_y1  # how much we shrank the company box
-    bill_y0 = 144.57 - gap
-    bill_y1 = 207.0 - gap
-    remit_top = bill_y1
-    company_zone = fitz.Rect(x0, company_y0, x1, company_y1)
-    bill_zone    = fitz.Rect(x0, bill_y0 + 12.76, x1, bill_y1)
-    remit_zone   = fitz.Rect(x0, remit_top, x1, 420.0)
+    HEADER_H = 12.76   # grey header bar height used in all boxes
+    BOX_GAP  = 3.24    # vertical gap between stacked boxes
+    REMIT_TOP_ORIG = 207.0  # original y where MAKE PAYABLE TO begins — do not move this
 
-    # Delete widgets in company/bill zones; for remit zone, update only the email widget
+    # --- Company box height (content-driven) ---
+    co_lines = [(company_name, "Helvetica-Bold", 11), (website, "Helvetica", 10),
+                (addr1, "Helvetica", 10), (addr2, "Helvetica", 10)]
+    co_lines = [(t, f, s) for t, f, s in co_lines if t]
+    n_co = len(co_lines) or 1
+    LINE_H_CO = 13
+    co_y0 = 42.52
+    co_y1 = co_y0 + HEADER_H + 8 + n_co * LINE_H_CO + 6   # header + top pad + lines + bottom pad
+
+    # --- Bill-to box height (content-driven) ---
+    bill_lines = [t for t in [client_name, loc_line1, loc_line2] if t]
+    n_bill = len(bill_lines) or 1
+    LINE_H_BILL = 13
+    bill_y0 = co_y1 + BOX_GAP
+    bill_y1 = bill_y0 + HEADER_H + 8 + n_bill * LINE_H_BILL + 6
+
+    # Sanity: never overlap the MAKE PAYABLE TO box
+    bill_y1 = min(bill_y1, REMIT_TOP_ORIG - BOX_GAP)
+
+    remit_top = REMIT_TOP_ORIG  # MAKE PAYABLE TO stays exactly where it was
+
+    # Clear zone covers the full original company + bill-to area (logo, old text, borders, all)
+    clear_zone = fitz.Rect(x0, 42.52, x1, REMIT_TOP_ORIG)
+    remit_zone = fitz.Rect(x0, remit_top, x1, 420.0)
+
+    # Delete widgets in clear zone; update email widget in remit zone
     for widget in list(page.widgets()):
-        if widget.rect.intersects(company_zone) or widget.rect.intersects(bill_zone):
+        if widget.rect.intersects(clear_zone):
             page.delete_widget(widget)
         elif widget.rect.intersects(remit_zone):
             val = widget.field_value or ""
@@ -38,7 +55,7 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
                 widget.field_value = remit_email
                 widget.update()
 
-    # Find the lowest content in the remit zone — only blocks contained within the column width
+    # Find the lowest content in the remit zone before we redact anything
     last_y = remit_top + 30
     for block in page.get_text("blocks"):
         bx0, by0, bx1, by1 = block[0], block[1], block[2], block[3]
@@ -51,43 +68,36 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     label_y = last_y + 14
     new_box_bottom = label_y + 18
 
-    # Remove free-text annotations in company and bill-to zones only
+    # Remove free-text annotations in the clear zone
     for annot in list(page.annots()):
-        if annot.type[0] != 12 and (annot.rect.intersects(company_zone) or annot.rect.intersects(bill_zone)):
+        if annot.type[0] != 12 and annot.rect.intersects(clear_zone):
             page.delete_annot(annot)
 
-    # Redact only company and bill zones — remit zone keeps all bank info intact
+    # Redact the full clear zone (nukes logo, original text, borders)
     page.clean_contents()
-    for rect in [company_zone, bill_zone]:
-        page.add_redact_annot(rect, fill=(1, 1, 1))
+    page.add_redact_annot(clear_zone, fill=(1, 1, 1))
     page.apply_redactions(images=2, graphics=1)
+    page.draw_rect(clear_zone, color=None, fill=white, overlay=True)
 
-    # White paint over company and bill zones only
-    for rect in [company_zone, bill_zone]:
-        page.draw_rect(rect, color=None, fill=(1, 1, 1), overlay=True)
+    # --- Draw company box ---
+    page.draw_rect(fitz.Rect(x0, co_y0, x1, co_y0 + HEADER_H), color=None, fill=grey)
+    page.draw_rect(fitz.Rect(x0, co_y0, x1, co_y1), color=black, width=width)
+    y = co_y0 + HEADER_H + 8 + LINE_H_CO - 3   # baseline of first text line
+    for text, font, size in co_lines:
+        page.insert_text(fitz.Point(x0 + 6, y), text, fontname=font, fontsize=size, color=black)
+        y += LINE_H_CO
 
-    # Company box (fully redrawn)
-    y0, y1 = company_y0, company_y1
-    page.draw_rect(fitz.Rect(x0, y0, x1, y0 + 12.76), color=None, fill=grey)
-    page.draw_rect(fitz.Rect(x0, y0, x1, y1), color=black, width=width)
-    y = y0 + 29.76
-    for text, font, size in [(company_name, "Helvetica-Bold", 11), (website, "Helvetica", 11), (addr1, "Helvetica", 11), (addr2, "Helvetica", 11)]:
-        if text:
-            page.insert_text(fitz.Point(x0 + 6, y), text, fontname=font, fontsize=size, color=black)
-        y += 15
+    # --- Draw bill-to box (fully redrawn including header) ---
+    page.draw_rect(fitz.Rect(x0, bill_y0, x1, bill_y0 + HEADER_H), color=None, fill=grey)
+    page.draw_rect(fitz.Rect(x0, bill_y0, x1, bill_y1), color=black, width=width)
+    page.insert_text(fitz.Point(x0 + 4, bill_y0 + HEADER_H - 2), "BILL TO",
+                     fontname="Helvetica-Bold", fontsize=7, color=black)
+    y = bill_y0 + HEADER_H + 8 + LINE_H_BILL - 3
+    for text in bill_lines:
+        page.insert_text(fitz.Point(x0 + 6, y), text, fontname="Helvetica", fontsize=10, color=black)
+        y += LINE_H_BILL
 
-    # Bill-to content (header stays from original PDF, redraw border and insert client text)
-    page.draw_line(fitz.Point(x0, bill_y0), fitz.Point(x0, bill_y1), color=black, width=width)
-    page.draw_line(fitz.Point(x1, bill_y0), fitz.Point(x1, bill_y1), color=black, width=width)
-    page.draw_line(fitz.Point(x0, bill_y1), fitz.Point(x1, bill_y1), color=black, width=width)
-    y = bill_y0 + 22
-    for text in [client_name, loc_line1, loc_line2]:
-        if text:
-            page.insert_text(fitz.Point(x0 + 6, y), text, fontname="Helvetica", fontsize=11, color=black)
-            y += 13
-
-    # Extend the MAKE PAYABLE TO box downward and insert remittance label
-    # White out the original bottom border, extend sides, draw new bottom
+    # --- Extend the MAKE PAYABLE TO box downward and insert remittance label ---
     page.draw_rect(fitz.Rect(x0 - 2, last_y, x1 + 2, last_y + 20), color=None, fill=white, overlay=True)
     page.draw_line(fitz.Point(x0, last_y), fitz.Point(x0, new_box_bottom), color=black, width=width)
     page.draw_line(fitz.Point(x1, last_y), fitz.Point(x1, new_box_bottom), color=black, width=width)
