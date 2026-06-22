@@ -31,9 +31,16 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
                 widget.field_value = remit_email
                 widget.update()
 
-    # Insert remittance advice label near the bottom of the MAKE PAYABLE TO box
-    page.insert_text(fitz.Point(x0 + 6, 396), "Email remittance advice to:", fontname="Helvetica", fontsize=9, color=black)
-    page.insert_text(fitz.Point(x0 + 6, 408), remit_email, fontname="Helvetica", fontsize=9, color=black)
+    # Find the lowest text block in the remit zone and insert remittance label below it
+    last_y = 207.0 + 30
+    for block in page.get_text("blocks"):
+        bx0, by0, bx1, by1 = block[0], block[1], block[2], block[3]
+        block_rect = fitz.Rect(bx0, by0, bx1, by1)
+        if block_rect.intersects(remit_zone) and by1 > last_y:
+            last_y = by1
+    label_y = last_y + 14
+    page.insert_text(fitz.Point(x0 + 6, label_y), "Email remittance advice to:", fontname="Helvetica", fontsize=9, color=black)
+    page.insert_text(fitz.Point(x0 + 6, label_y + 12), remit_email, fontname="Helvetica", fontsize=9, color=black)
 
     # Remove free-text annotations in company and bill-to zones only
     for annot in list(page.annots()):
