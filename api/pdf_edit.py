@@ -42,42 +42,37 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
 
     # Clear zone covers the full original company + bill-to area (logo, old text, borders, all)
     clear_zone = fitz.Rect(x0, 42.52, x1, REMIT_TOP_ORIG)
-    remit_zone = fitz.Rect(x0, remit_top, x1, 420.0)
 
-    # Delete widgets in clear zone; update email widget in remit zone
-    for widget in list(page.widgets()):
-        if widget.rect.intersects(clear_zone):
-            page.delete_widget(widget)
-        elif widget.rect.intersects(remit_zone):
-            val = widget.field_value or ""
-            name = widget.field_name or ""
-            if "@" in val or "email" in name.lower() or "remit" in name.lower():
-                widget.field_value = remit_email
-                widget.update()
-
-    # Find the lowest content in the remit zone before we redact anything
+    # Find lowest TEXT BLOCK in the MAKE PAYABLE TO column (do NOT include widgets —
+    # the email widget lives in a tear-off section below the box and must not set last_y)
     last_y = remit_top + 30
     for block in page.get_text("blocks"):
         bx0, by0, bx1, by1 = block[0], block[1], block[2], block[3]
         if bx0 >= x0 - 5 and bx1 <= x1 + 5 and by0 >= remit_top and by1 > last_y:
             last_y = by1
-    for widget in list(page.widgets()):
-        r = widget.rect
-        if r.x0 >= x0 - 5 and r.x1 <= x1 + 5 and r.y0 >= remit_top and r.y1 > last_y:
-            last_y = r.y1
-    label_y = last_y + 14
-    new_box_bottom = label_y + 26
 
-    # Remove free-text annotations in the clear zone
+    label_y = last_y + 10
+    new_box_bottom = label_y + 26
+    # Tear-off section sits below last_y — wipe it completely so it doesn't show through
+    tearoff_zone = fitz.Rect(x0 - 2, last_y, x1 + 2, new_box_bottom + 20)
+
+    # Delete ALL widgets in clear_zone and tearoff_zone (including the email tear-off widget)
+    for widget in list(page.widgets()):
+        if widget.rect.intersects(clear_zone) or widget.rect.intersects(tearoff_zone):
+            page.delete_widget(widget)
+
+    # Remove free-text annotations in both zones
     for annot in list(page.annots()):
-        if annot.type[0] != 12 and annot.rect.intersects(clear_zone):
+        if annot.type[0] != 12 and (annot.rect.intersects(clear_zone) or annot.rect.intersects(tearoff_zone)):
             page.delete_annot(annot)
 
-    # Redact the full clear zone (nukes logo, original text, borders)
+    # Redact both zones in one pass
     page.clean_contents()
     page.add_redact_annot(clear_zone, fill=(1, 1, 1))
+    page.add_redact_annot(tearoff_zone, fill=(1, 1, 1))
     page.apply_redactions(images=2, graphics=1)
     page.draw_rect(clear_zone, color=None, fill=white, overlay=True)
+    page.draw_rect(tearoff_zone, color=None, fill=white, overlay=True)
 
     # --- Draw company box ---
     page.draw_rect(fitz.Rect(x0, co_y0, x1, co_y0 + HEADER_H), color=None, fill=grey)
@@ -90,17 +85,17 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     # --- Draw bill-to box (fully redrawn including header) ---
     page.draw_rect(fitz.Rect(x0, bill_y0, x1, bill_y0 + HEADER_H), color=None, fill=grey)
     page.draw_rect(fitz.Rect(x0, bill_y0, x1, bill_y1), color=black, width=width)
-    page.insert_text(fitz.Point(x0 + 4, bill_y0 + HEADER_H - 2), "BILL TO",
-                     fontname="Helvetica-Bold", fontsize=7, color=black)
+    page.insert_text(fitz.Point(x0 + 4, bill_y0 + HEADER_H - 3), "BILL TO",
+                     fontname="Helvetica-Bold", fontsize=8, color=black)
     y = bill_y0 + HEADER_H + 8 + LINE_H_BILL - 3
     for text in bill_lines:
         page.insert_text(fitz.Point(x0 + 6, y), text, fontname="Helvetica", fontsize=10, color=black)
         y += LINE_H_BILL
 
     # --- Extend the MAKE PAYABLE TO box downward and insert remittance label ---
-    page.draw_rect(fitz.Rect(x0 - 2, last_y, x1 + 2, last_y + 20), color=None, fill=white, overlay=True)
-    page.draw_line(fitz.Point(x0, last_y), fitz.Point(x0, new_box_bottom), color=black, width=width)
-    page.draw_line(fitz.Point(x1, last_y), fitz.Point(x1, new_box_bottom), color=black, width=width)
+    # Sides run from remit_top all the way to new_box_bottom to cover any gap left by the tear-off wipe
+    page.draw_line(fitz.Point(x0, remit_top), fitz.Point(x0, new_box_bottom), color=black, width=width)
+    page.draw_line(fitz.Point(x1, remit_top), fitz.Point(x1, new_box_bottom), color=black, width=width)
     page.draw_line(fitz.Point(x0, new_box_bottom), fitz.Point(x1, new_box_bottom), color=black, width=width)
     page.insert_text(fitz.Point(x0 + 6, label_y), "Email remittance information to:", fontname="Helvetica", fontsize=10, color=black)
     page.insert_text(fitz.Point(x0 + 6, label_y + 13), remit_email, fontname="Helvetica", fontsize=10, color=black)
