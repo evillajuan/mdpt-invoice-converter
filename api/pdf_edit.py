@@ -16,8 +16,8 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     grey, black, white = (0.784, 0.784, 0.784), (0, 0, 0), (1, 1, 1)
     x0, x1 = 42.52, 269.29
     bill_y0, bill_y1 = 144.57, 207.0
-    # Only erase the email address line at the bottom of the payable-to box
-    email_y0, email_y1 = 292.0, 355.0
+    # Erase only the email address line — label is in the template and stays
+    email_y0, email_y1 = 280.0, 300.0
 
     edit_zones = [
         fitz.Rect(42.52, 42.52, 269.29, 141.33),          # company info
@@ -65,10 +65,9 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
             page.insert_text(fitz.Point(x0 + 6, y), text, fontname="Helvetica", fontsize=11, color=black)
             y += 13
 
-    # Email remittance — only the email strip is replaced, bank info stays from original PDF
-    page.insert_text(fitz.Point(x0 + 6, 310), "Email Remittance Advice to:", fontname="Helvetica", fontsize=11, color=black)
+    # Replace only the email address — the label stays from the template
     if remit_email:
-        page.insert_text(fitz.Point(x0 + 6, 325), remit_email, fontname="Helvetica", fontsize=11, color=black)
+        page.insert_text(fitz.Point(x0 + 6, 293), remit_email, fontname="Helvetica", fontsize=11, color=black)
 
     if len(doc) > 1:
         doc[1].clean_contents()
