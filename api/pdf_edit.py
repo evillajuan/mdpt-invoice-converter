@@ -81,6 +81,25 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     return output.getvalue()
 
 
+@app.post("/api/pdf_inspect")
+@app.post("/api/pdf_inspect/")
+async def inspect_pdf(pdf: UploadFile = File(...)):
+    """Temporary diagnostic: returns text block coordinates from page 1."""
+    doc = fitz.open(stream=await pdf.read(), filetype="pdf")
+    page = doc[0]
+    blocks = [
+        {"y0": round(b[1], 2), "y1": round(b[3], 2), "x0": round(b[0], 2), "x1": round(b[2], 2), "text": b[4].strip()}
+        for b in page.get_text("blocks")
+        if b[4].strip()
+    ]
+    widgets = [
+        {"rect": [round(v, 2) for v in w.rect], "value": w.field_value, "type": w.field_type_string}
+        for w in (page.widgets() or [])
+    ]
+    doc.close()
+    return {"blocks": blocks, "widgets": widgets}
+
+
 @app.get("/api/pdf_edit")
 @app.get("/")
 def health():
