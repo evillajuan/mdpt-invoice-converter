@@ -16,17 +16,35 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     grey, black, white = (0.784, 0.784, 0.784), (0, 0, 0), (1, 1, 1)
     x0, x1 = 42.52, 269.29
     bill_y0, bill_y1 = 144.57, 207.0
-    remit_y0, remit_y1 = 209.76, 350.08
+    remit_y0, remit_y1 = 209.76, 410.0
 
-    # Permanently redact all original content in edit zones so nothing bleeds through on any viewer
-    for rect in [
-        fitz.Rect(42.52, 42.52, 157.53, 141.33),              # company text area
-        fitz.Rect(x0 + 1, 157.33, x1 - 1, bill_y1 - 0.5),    # bill-to content
-        fitz.Rect(x0 + 1, bill_y1, x1 - 1, remit_y0 + 1),    # gap between boxes
-        fitz.Rect(x0 + 1, 292, x1 - 1, remit_y1 - 0.5),      # remit email area
-    ]:
+    edit_zones = [
+        fitz.Rect(42.52, 42.52, 269.29, 141.33),
+        fitz.Rect(x0, 144.57, x1, bill_y1),
+        fitz.Rect(x0, bill_y1, x1, remit_y0),
+        fitz.Rect(x0, remit_y0, x1, remit_y1),
+    ]
+
+    # Remove form widgets (text fields, etc.) that live in the edit zones —
+    # these are never touched by apply_redactions
+    for widget in list(page.widgets()):
+        if any(widget.rect.intersects(r) for r in edit_zones):
+            page.delete_widget(widget)
+
+    # Remove any non-redact annotations (free text, etc.) in the edit zones
+    for annot in list(page.annots()):
+        if annot.type[0] != 12 and any(annot.rect.intersects(r) for r in edit_zones):
+            page.delete_annot(annot)
+
+    # Flatten content streams then redact text, images, and line art
+    page.clean_contents()
+    for rect in edit_zones:
         page.add_redact_annot(rect, fill=(1, 1, 1))
-    page.apply_redactions()
+    page.apply_redactions(images=2, graphics=1)
+
+    # Belt-and-suspenders: paint solid white over each zone last
+    for rect in edit_zones:
+        page.draw_rect(rect, color=None, fill=(1, 1, 1), overlay=True)
 
     # Company box
     y0, y1 = 42.52, 141.33
