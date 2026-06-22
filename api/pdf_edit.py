@@ -41,8 +41,7 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
         if widget.rect.intersects(remit_zone) and widget.rect.y1 > last_y:
             last_y = widget.rect.y1
     label_y = last_y + 14
-    page.insert_text(fitz.Point(x0 + 6, label_y), "Email remittance advice to:", fontname="Helvetica", fontsize=9, color=black)
-    page.insert_text(fitz.Point(x0 + 6, label_y + 12), remit_email, fontname="Helvetica", fontsize=9, color=black)
+    new_box_bottom = label_y + 18
 
     # Remove free-text annotations in company and bill-to zones only
     for annot in list(page.annots()):
@@ -78,6 +77,15 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
         if text:
             page.insert_text(fitz.Point(x0 + 6, y), text, fontname="Helvetica", fontsize=11, color=black)
             y += 13
+
+    # Extend the MAKE PAYABLE TO box downward and insert remittance label
+    # White out the original bottom border, extend sides, draw new bottom
+    page.draw_rect(fitz.Rect(x0 - 2, last_y, x1 + 2, last_y + 20), color=None, fill=white, overlay=True)
+    page.draw_line(fitz.Point(x0, last_y), fitz.Point(x0, new_box_bottom), color=black, width=width)
+    page.draw_line(fitz.Point(x1, last_y), fitz.Point(x1, new_box_bottom), color=black, width=width)
+    page.draw_line(fitz.Point(x0, new_box_bottom), fitz.Point(x1, new_box_bottom), color=black, width=width)
+    page.insert_text(fitz.Point(x0 + 6, label_y), "Email remittance advice to:", fontname="Helvetica", fontsize=9, color=black)
+    page.insert_text(fitz.Point(x0 + 6, label_y + 12), remit_email, fontname="Helvetica", fontsize=9, color=black)
 
     if len(doc) > 1:
         doc[1].clean_contents()
