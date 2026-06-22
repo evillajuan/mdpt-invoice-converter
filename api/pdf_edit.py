@@ -20,7 +20,7 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     REMIT_TOP_ORIG = 207.0  # original y where MAKE PAYABLE TO begins — do not move this
 
     # --- Company box height (content-driven) ---
-    co_lines = [(company_name, "Helvetica-Bold", 11), (website, "Helvetica", 10),
+    co_lines = [(company_name, "Helvetica-Bold", 10), (website, "Helvetica", 10),
                 (addr1, "Helvetica", 10), (addr2, "Helvetica", 10)]
     co_lines = [(t, f, s) for t, f, s in co_lines if t]
     n_co = len(co_lines) or 1
@@ -66,7 +66,7 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
         if r.x0 >= x0 - 5 and r.x1 <= x1 + 5 and r.y0 >= remit_top and r.y1 > last_y:
             last_y = r.y1
     label_y = last_y + 14
-    new_box_bottom = label_y + 18
+    new_box_bottom = label_y + 26
 
     # Remove free-text annotations in the clear zone
     for annot in list(page.annots()):
@@ -102,8 +102,8 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     page.draw_line(fitz.Point(x0, last_y), fitz.Point(x0, new_box_bottom), color=black, width=width)
     page.draw_line(fitz.Point(x1, last_y), fitz.Point(x1, new_box_bottom), color=black, width=width)
     page.draw_line(fitz.Point(x0, new_box_bottom), fitz.Point(x1, new_box_bottom), color=black, width=width)
-    page.insert_text(fitz.Point(x0 + 6, label_y), "Email remittance advice to:", fontname="Helvetica", fontsize=9, color=black)
-    page.insert_text(fitz.Point(x0 + 6, label_y + 12), remit_email, fontname="Helvetica", fontsize=9, color=black)
+    page.insert_text(fitz.Point(x0 + 6, label_y), "Email remittance information to:", fontname="Helvetica", fontsize=10, color=black)
+    page.insert_text(fitz.Point(x0 + 6, label_y + 13), remit_email, fontname="Helvetica", fontsize=10, color=black)
 
     if len(doc) > 1:
         doc[1].clean_contents()

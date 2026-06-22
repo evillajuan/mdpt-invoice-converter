@@ -11,7 +11,7 @@ def health(): return {'ok':True}
 async def edit_invoice(pdf:UploadFile=File(...),companyName:str=Form('Tessen Payroll USA LLC'),website:str=Form('tessenpayroll.com'),addr1:str=Form('1309 Coffeen Ave'),addr2:str=Form('Sheridan, WY 82801'),clientName:str=Form(''),locLine1:str=Form(''),locLine2:str=Form(''),remitEmail:str=Form('finance@tessenpayroll.com')):
     doc=fitz.open(stream=await pdf.read(),filetype='pdf'); p1=doc[0]; W=.57; grey=(.784,.784,.784); black=(0,0,0); white=(1,1,1); x0,x1=42.52,269.29
     HH=12.76; GAP=3.24; REMIT_TOP=207.0
-    co_lines=[(t,f,s) for t,f,s in [(companyName,'Helvetica-Bold',11),(website,'Helvetica',10),(addr1,'Helvetica',10),(addr2,'Helvetica',10)] if t]
+    co_lines=[(t,f,s) for t,f,s in [(companyName,'Helvetica-Bold',10),(website,'Helvetica',10),(addr1,'Helvetica',10),(addr2,'Helvetica',10)] if t]
     n_co=len(co_lines) or 1; LH=13; cy0=42.52; cy1=cy0+HH+8+n_co*LH+6
     bill_lines=[t for t in [clientName,locLine1,locLine2] if t]; n_b=len(bill_lines) or 1
     by0=cy1+GAP; by1=min(by0+HH+8+n_b*LH+6, REMIT_TOP-GAP)
@@ -27,7 +27,7 @@ async def edit_invoice(pdf:UploadFile=File(...),companyName:str=Form('Tessen Pay
         if bx0>=x0-5 and bx1<=x1+5 and by0_>=REMIT_TOP and by1_>last_y: last_y=by1_
     for w in list(p1.widgets()):
         if w.rect.x0>=x0-5 and w.rect.x1<=x1+5 and w.rect.y0>=REMIT_TOP and w.rect.y1>last_y: last_y=w.rect.y1
-    label_y=last_y+14; nbb=label_y+18
+    label_y=last_y+14; nbb=label_y+26
     for a in list(p1.annots()):
         if a.type[0]!=12 and a.rect.intersects(clear_zone): p1.delete_annot(a)
     p1.clean_contents(); p1.add_redact_annot(clear_zone,fill=(1,1,1)); p1.apply_redactions(images=2,graphics=1)
@@ -41,8 +41,8 @@ async def edit_invoice(pdf:UploadFile=File(...),companyName:str=Form('Tessen Pay
     for text in bill_lines: p1.insert_text(fitz.Point(x0+6,y),text,fontname='Helvetica',fontsize=10,color=black); y+=LH
     p1.draw_rect(fitz.Rect(x0-2,last_y,x1+2,last_y+20),color=None,fill=white,overlay=True)
     p1.draw_line(fitz.Point(x0,last_y),fitz.Point(x0,nbb),color=black,width=W); p1.draw_line(fitz.Point(x1,last_y),fitz.Point(x1,nbb),color=black,width=W); p1.draw_line(fitz.Point(x0,nbb),fitz.Point(x1,nbb),color=black,width=W)
-    p1.insert_text(fitz.Point(x0+6,label_y),'Email remittance advice to:',fontname='Helvetica',fontsize=9,color=black)
-    if remitEmail: p1.insert_text(fitz.Point(x0+6,label_y+12),remitEmail,fontname='Helvetica',fontsize=9,color=black)
+    p1.insert_text(fitz.Point(x0+6,label_y),'Email remittance information to:',fontname='Helvetica',fontsize=10,color=black)
+    if remitEmail: p1.insert_text(fitz.Point(x0+6,label_y+13),remitEmail,fontname='Helvetica',fontsize=10,color=black)
     if len(doc)>1:
         p2=doc[1]; p2.clean_contents(); p2.add_redact_annot(fitz.Rect(690,42,800,132),fill=(1,1,1)); p2.apply_redactions(images=2,graphics=1)
     out=io.BytesIO();doc.save(out,deflate=True,garbage=3);doc.close();return Response(content=out.getvalue(),media_type='application/pdf')
