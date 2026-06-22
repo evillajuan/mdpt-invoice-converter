@@ -32,10 +32,10 @@ async def edit_invoice(pdf:UploadFile=File(...),companyName:str=Form('Tessen Pay
     for r in edit_zones: p1.draw_rect(r,color=None,fill=(1,1,1),overlay=True)
     # Draw company box
     y0,y1=42.52,141.33; p1.draw_rect(fitz.Rect(x0,y0,x1,y0+12.76),color=None,fill=grey); p1.draw_rect(fitz.Rect(x0,y0,x1,y1),color=black,width=W)
-    y=y0+29.76
+    y=y0+26
     for text,font,size in [(companyName,'Helvetica-Bold',11),(website,'Helvetica',11),(addr1,'Helvetica',11),(addr2,'Helvetica',11)]:
         if text:p1.insert_text(fitz.Point(x0+6,y),text,fontname=font,fontsize=size,color=black)
-        y+=15
+        y+=13
     # Draw bill-to box border and insert client text
     p1.draw_line(fitz.Point(x0,by0),fitz.Point(x0,by1),color=black,width=W);p1.draw_line(fitz.Point(x1,by0),fitz.Point(x1,by1),color=black,width=W);p1.draw_line(fitz.Point(x0,by1),fitz.Point(x1,by1),color=black,width=W)
     y=by0+22
@@ -50,9 +50,14 @@ async def edit_invoice(pdf:UploadFile=File(...),companyName:str=Form('Tessen Pay
     for w in list(p1.widgets()):
         if w.rect.intersects(remit_zone) and w.rect.y1>last_y:
             last_y=w.rect.y1
-    label_y=last_y+14
-    p1.insert_text(fitz.Point(x0+6,label_y),'Email remittance advice to:',fontname='Helvetica',fontsize=9,color=black)
-    if remitEmail:p1.insert_text(fitz.Point(x0+6,label_y+12),remitEmail,fontname='Helvetica',fontsize=9,color=black)
+    ceiling_y=p1.rect.height
+    for block in p1.get_text('blocks'):
+        bx0,by0_,bx1,by1_=block[0],block[1],block[2],block[3]
+        if by0_>my0 and bx1>x1+20 and by0_<ceiling_y:ceiling_y=by0_
+    label_y=last_y+10
+    if (ceiling_y-last_y)>=30:
+        p1.insert_text(fitz.Point(x0+6,label_y),'Email remittance advice to:',fontname='Helvetica',fontsize=9,color=black)
+        if remitEmail:p1.insert_text(fitz.Point(x0+6,label_y+12),remitEmail,fontname='Helvetica',fontsize=9,color=black)
     if len(doc)>1:
         p2=doc[1]; p2.clean_contents(); p2.add_redact_annot(fitz.Rect(690,42,800,132),fill=(1,1,1)); p2.apply_redactions(images=2,graphics=1)
     out=io.BytesIO();doc.save(out,deflate=True,garbage=3);doc.close();return Response(content=out.getvalue(),media_type='application/pdf')

@@ -41,8 +41,15 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
         r = widget.rect
         if r.x0 >= x0 - 5 and r.x1 <= x1 + 5 and r.y0 >= 207.0 and r.y1 > last_y:
             last_y = r.y1
-    label_y = last_y + 14
-    new_box_bottom = label_y + 18
+    # Find ceiling: first full-width content below the remit zone (e.g. "Please detach" or table)
+    ceiling_y = page.rect.height
+    for block in page.get_text("blocks"):
+        bx0, by0, bx1, by1 = block[0], block[1], block[2], block[3]
+        if by0 > 207.0 and bx1 > x1 + 20 and by0 < ceiling_y:
+            ceiling_y = by0
+    label_y = last_y + 10
+    new_box_bottom = label_y + 20
+    has_room = (ceiling_y - last_y) >= 30
 
     # Remove free-text annotations in company and bill-to zones only
     for annot in list(page.annots()):
@@ -63,11 +70,11 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     y0, y1 = 42.52, 141.33
     page.draw_rect(fitz.Rect(x0, y0, x1, y0 + 12.76), color=None, fill=grey)
     page.draw_rect(fitz.Rect(x0, y0, x1, y1), color=black, width=width)
-    y = y0 + 29.76
+    y = y0 + 26
     for text, font, size in [(company_name, "Helvetica-Bold", 11), (website, "Helvetica", 11), (addr1, "Helvetica", 11), (addr2, "Helvetica", 11)]:
         if text:
             page.insert_text(fitz.Point(x0 + 6, y), text, fontname=font, fontsize=size, color=black)
-        y += 15
+        y += 13
 
     # Bill-to content (header stays from original PDF, redraw border and insert client text)
     page.draw_line(fitz.Point(x0, bill_y0), fitz.Point(x0, bill_y1), color=black, width=width)
@@ -79,14 +86,14 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
             page.insert_text(fitz.Point(x0 + 6, y), text, fontname="Helvetica", fontsize=11, color=black)
             y += 13
 
-    # Extend the MAKE PAYABLE TO box downward and insert remittance label
-    # White out the original bottom border, extend sides, draw new bottom
-    page.draw_rect(fitz.Rect(x0 - 2, last_y, x1 + 2, last_y + 40), color=None, fill=white, overlay=True)
-    page.draw_line(fitz.Point(x0, last_y), fitz.Point(x0, new_box_bottom), color=black, width=width)
-    page.draw_line(fitz.Point(x1, last_y), fitz.Point(x1, new_box_bottom), color=black, width=width)
-    page.draw_line(fitz.Point(x0, new_box_bottom), fitz.Point(x1, new_box_bottom), color=black, width=width)
-    page.insert_text(fitz.Point(x0 + 6, label_y), "Email remittance advice to:", fontname="Helvetica", fontsize=9, color=black)
-    page.insert_text(fitz.Point(x0 + 6, label_y + 12), remit_email, fontname="Helvetica", fontsize=9, color=black)
+    # Extend the MAKE PAYABLE TO box downward and insert remittance label (only if enough room before full-width content)
+    if has_room:
+        page.draw_rect(fitz.Rect(x0 - 2, last_y, x1 + 2, last_y + 40), color=None, fill=white, overlay=True)
+        page.draw_line(fitz.Point(x0, last_y), fitz.Point(x0, new_box_bottom), color=black, width=width)
+        page.draw_line(fitz.Point(x1, last_y), fitz.Point(x1, new_box_bottom), color=black, width=width)
+        page.draw_line(fitz.Point(x0, new_box_bottom), fitz.Point(x1, new_box_bottom), color=black, width=width)
+        page.insert_text(fitz.Point(x0 + 6, label_y), "Email remittance advice to:", fontname="Helvetica", fontsize=9, color=black)
+        page.insert_text(fitz.Point(x0 + 6, label_y + 12), remit_email, fontname="Helvetica", fontsize=9, color=black)
 
     if len(doc) > 1:
         doc[1].clean_contents()
