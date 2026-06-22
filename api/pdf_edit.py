@@ -18,15 +18,18 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     bill_y0, bill_y1 = 144.57, 207.0
     remit_y0, remit_y1 = 209.76, 350.08
 
-    # Permanently redact all original content in edit zones so nothing bleeds through on any viewer
+    # Flatten all content streams so redactions hit every layer
+    page.clean_contents()
+
+    # Redact all original content in edit zones (images=2 removes pixels too, graphics=1 removes line art)
     for rect in [
-        fitz.Rect(42.52, 42.52, 157.53, 141.33),              # company text area
-        fitz.Rect(x0 + 1, 157.33, x1 - 1, bill_y1 - 0.5),    # bill-to content
-        fitz.Rect(x0 + 1, bill_y1, x1 - 1, remit_y0 + 1),    # gap between boxes
-        fitz.Rect(x0 + 1, remit_y0 + 1, x1 - 1, remit_y1 - 0.5),  # remit box content
+        fitz.Rect(42.52, 42.52, 269.29, 141.33),         # company area (full width)
+        fitz.Rect(x0, 144.57, x1, bill_y1),               # bill-to box content
+        fitz.Rect(x0, bill_y1, x1, remit_y0),             # gap between boxes
+        fitz.Rect(x0, remit_y0, x1, remit_y1),            # full remit box
     ]:
         page.add_redact_annot(rect, fill=(1, 1, 1))
-    page.apply_redactions()
+    page.apply_redactions(images=2, graphics=1)
 
     # Company box
     y0, y1 = 42.52, 141.33
