@@ -10,10 +10,11 @@ def health(): return {'ok':True}
 @app.post('/edit')
 async def edit_invoice(pdf:UploadFile=File(...),companyName:str=Form('Tessen Payroll USA LLC'),website:str=Form('tessenpayroll.com'),addr1:str=Form('1309 Coffeen Ave'),addr2:str=Form('Sheridan, WY 82801'),clientName:str=Form(''),locLine1:str=Form(''),locLine2:str=Form(''),remitEmail:str=Form('finance@tessenpayroll.com')):
     doc=fitz.open(stream=await pdf.read(),filetype='pdf'); p1=doc[0]; W=.57; grey=(.784,.784,.784); black=(0,0,0); x0,x1=42.52,269.29
-    by0,by1=144.57,207.0; my0,my1=209.76,410.0
+    cy0=42.52; n_co=len([t for t in [companyName,website,addr1,addr2] if t]) or 1; cy1=cy0+29.76+(n_co-1)*15+10
+    gap=141.33-cy1; by0=144.57-gap; by1=207.0-gap; my0=by1; my1=410.0
     remit_zone=fitz.Rect(x0,my0,x1,my1)
     # Only edit company and bill-to zones; leave remit zone intact
-    edit_zones=[fitz.Rect(42.52,42.52,269.29,141.33),fitz.Rect(x0,by0,x1,by1),fitz.Rect(x0,by1,x1,my0)]
+    edit_zones=[fitz.Rect(x0,cy0,x1,cy1),fitz.Rect(x0,by0,x1,by1),fitz.Rect(x0,by1,x1,my0)]
     # Remove form widgets in company/bill zones; update email widget in remit zone
     for w in list(p1.widgets()):
         if any(w.rect.intersects(r) for r in edit_zones):
@@ -31,7 +32,7 @@ async def edit_invoice(pdf:UploadFile=File(...),companyName:str=Form('Tessen Pay
     p1.apply_redactions(images=2,graphics=1)
     for r in edit_zones: p1.draw_rect(r,color=None,fill=(1,1,1),overlay=True)
     # Draw company box
-    y0,y1=42.52,141.33; p1.draw_rect(fitz.Rect(x0,y0,x1,y0+12.76),color=None,fill=grey); p1.draw_rect(fitz.Rect(x0,y0,x1,y1),color=black,width=W)
+    y0,y1=cy0,cy1; p1.draw_rect(fitz.Rect(x0,y0,x1,y0+12.76),color=None,fill=grey); p1.draw_rect(fitz.Rect(x0,y0,x1,y1),color=black,width=W)
     y=y0+29.76
     for text,font,size in [(companyName,'Helvetica-Bold',11),(website,'Helvetica',11),(addr1,'Helvetica',11),(addr2,'Helvetica',11)]:
         if text:p1.insert_text(fitz.Point(x0+6,y),text,fontname=font,fontsize=size,color=black)

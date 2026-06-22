@@ -15,10 +15,17 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     width = 0.57
     grey, black, white = (0.784, 0.784, 0.784), (0, 0, 0), (1, 1, 1)
     x0, x1 = 42.52, 269.29
-    bill_y0, bill_y1 = 144.57, 207.0
-    company_zone = fitz.Rect(42.52, 42.52, 269.29, 141.33)
+    company_y0 = 42.52
+    company_texts = [t for t in [company_name, website, addr1, addr2] if t]
+    n_company = len(company_texts) if company_texts else 1
+    company_y1 = company_y0 + 29.76 + (n_company - 1) * 15 + 10
+    gap = 141.33 - company_y1  # how much we shrank the company box
+    bill_y0 = 144.57 - gap
+    bill_y1 = 207.0 - gap
+    remit_top = bill_y1
+    company_zone = fitz.Rect(x0, company_y0, x1, company_y1)
     bill_zone    = fitz.Rect(x0, bill_y0 + 12.76, x1, bill_y1)
-    remit_zone   = fitz.Rect(x0, 207.0, x1, 420.0)
+    remit_zone   = fitz.Rect(x0, remit_top, x1, 420.0)
 
     # Delete widgets in company/bill zones; for remit zone, update only the email widget
     for widget in list(page.widgets()):
@@ -32,14 +39,14 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
                 widget.update()
 
     # Find the lowest content in the remit zone — only blocks contained within the column width
-    last_y = 207.0 + 30
+    last_y = remit_top + 30
     for block in page.get_text("blocks"):
         bx0, by0, bx1, by1 = block[0], block[1], block[2], block[3]
-        if bx0 >= x0 - 5 and bx1 <= x1 + 5 and by0 >= 207.0 and by1 > last_y:
+        if bx0 >= x0 - 5 and bx1 <= x1 + 5 and by0 >= remit_top and by1 > last_y:
             last_y = by1
     for widget in list(page.widgets()):
         r = widget.rect
-        if r.x0 >= x0 - 5 and r.x1 <= x1 + 5 and r.y0 >= 207.0 and r.y1 > last_y:
+        if r.x0 >= x0 - 5 and r.x1 <= x1 + 5 and r.y0 >= remit_top and r.y1 > last_y:
             last_y = r.y1
     label_y = last_y + 14
     new_box_bottom = label_y + 18
@@ -60,7 +67,7 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
         page.draw_rect(rect, color=None, fill=(1, 1, 1), overlay=True)
 
     # Company box (fully redrawn)
-    y0, y1 = 42.52, 141.33
+    y0, y1 = company_y0, company_y1
     page.draw_rect(fitz.Rect(x0, y0, x1, y0 + 12.76), color=None, fill=grey)
     page.draw_rect(fitz.Rect(x0, y0, x1, y1), color=black, width=width)
     y = y0 + 29.76
