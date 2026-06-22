@@ -23,7 +23,7 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
         fitz.Rect(42.52, 42.52, 157.53, 141.33),              # company text area
         fitz.Rect(x0 + 1, 157.33, x1 - 1, bill_y1 - 0.5),    # bill-to content
         fitz.Rect(x0 + 1, bill_y1, x1 - 1, remit_y0 + 1),    # gap between boxes
-        fitz.Rect(x0 + 1, 292, x1 - 1, remit_y1 - 0.5),      # remit email area
+        fitz.Rect(x0 + 1, remit_y0 + 1, x1 - 1, remit_y1 - 0.5),  # remit box content
     ]:
         page.add_redact_annot(rect, fill=(1, 1, 1))
     page.apply_redactions()
