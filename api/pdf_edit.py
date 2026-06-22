@@ -31,13 +31,15 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
                 widget.field_value = remit_email
                 widget.update()
 
-    # Find the lowest text block in the remit zone and insert remittance label below it
+    # Find the lowest content (text blocks OR widgets) in the remit zone
     last_y = 207.0 + 30
     for block in page.get_text("blocks"):
         bx0, by0, bx1, by1 = block[0], block[1], block[2], block[3]
-        block_rect = fitz.Rect(bx0, by0, bx1, by1)
-        if block_rect.intersects(remit_zone) and by1 > last_y:
+        if fitz.Rect(bx0, by0, bx1, by1).intersects(remit_zone) and by1 > last_y:
             last_y = by1
+    for widget in list(page.widgets()):
+        if widget.rect.intersects(remit_zone) and widget.rect.y1 > last_y:
+            last_y = widget.rect.y1
     label_y = last_y + 14
     page.insert_text(fitz.Point(x0 + 6, label_y), "Email remittance advice to:", fontname="Helvetica", fontsize=9, color=black)
     page.insert_text(fitz.Point(x0 + 6, label_y + 12), remit_email, fontname="Helvetica", fontsize=9, color=black)
