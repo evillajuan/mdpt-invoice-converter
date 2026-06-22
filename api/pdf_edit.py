@@ -16,41 +16,35 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
     grey, black, white = (0.784, 0.784, 0.784), (0, 0, 0), (1, 1, 1)
     x0, x1 = 42.52, 269.29
     bill_y0, bill_y1 = 144.57, 207.0
-    # Zones for company and bill-to (fully redrawn)
     company_zone = fitz.Rect(42.52, 42.52, 269.29, 141.33)
     bill_zone    = fitz.Rect(x0, bill_y0 + 12.76, x1, bill_y1)
-    # Email address only — inset x so box borders survive, text-only redaction (no graphics)
-    email_zone   = fitz.Rect(x0 + 2, 280.0, x1 - 2, 300.0)
+    remit_zone   = fitz.Rect(x0, 207.0, x1, 420.0)
 
-    # Delete widgets only in company and bill-to zones
+    # Delete widgets in company/bill zones; for remit zone, update only the email widget
     for widget in list(page.widgets()):
         if widget.rect.intersects(company_zone) or widget.rect.intersects(bill_zone):
             page.delete_widget(widget)
-        elif widget.rect.intersects(email_zone):
-            # Update email widget value in-place instead of deleting
-            widget.field_value = remit_email
-            widget.update()
+        elif widget.rect.intersects(remit_zone):
+            val = widget.field_value or ""
+            name = widget.field_name or ""
+            if "@" in val or "email" in name.lower() or "remit" in name.lower():
+                widget.field_value = remit_email
+                widget.update()
 
     # Remove free-text annotations in company and bill-to zones only
     for annot in list(page.annots()):
         if annot.type[0] != 12 and (annot.rect.intersects(company_zone) or annot.rect.intersects(bill_zone)):
             page.delete_annot(annot)
 
-    # Flatten then redact — use graphics=0 for email zone to preserve box borders
+    # Redact only company and bill zones — remit zone keeps all bank info intact
     page.clean_contents()
     for rect in [company_zone, bill_zone]:
         page.add_redact_annot(rect, fill=(1, 1, 1))
     page.apply_redactions(images=2, graphics=1)
 
-    # Email zone: text-only redact (no graphics so borders stay intact)
-    page.add_redact_annot(email_zone, fill=(1, 1, 1))
-    page.apply_redactions(images=0, graphics=0)
-
-    # White paint over company and bill-to zones
+    # White paint over company and bill zones only
     for rect in [company_zone, bill_zone]:
         page.draw_rect(rect, color=None, fill=(1, 1, 1), overlay=True)
-    # White paint over email zone (inset — borders excluded)
-    page.draw_rect(email_zone, color=None, fill=(1, 1, 1), overlay=True)
 
     # Company box (fully redrawn)
     y0, y1 = 42.52, 141.33
@@ -71,10 +65,6 @@ def render_invoice(pdf_bytes, company_name, website, addr1, addr2, client_name, 
         if text:
             page.insert_text(fitz.Point(x0 + 6, y), text, fontname="Helvetica", fontsize=11, color=black)
             y += 13
-
-    # Replace only the email address — the label stays from the template
-    if remit_email:
-        page.insert_text(fitz.Point(x0 + 6, 293), remit_email, fontname="Helvetica", fontsize=11, color=black)
 
     if len(doc) > 1:
         doc[1].clean_contents()
